@@ -115,6 +115,16 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       label: "workspace/settings",
       payload: { workspaceId, settings },
     });
+    let previous: WorkspaceInfo | null = null;
+    setWorkspaces((prev) =>
+      prev.map((entry) => {
+        if (entry.id !== workspaceId) {
+          return entry;
+        }
+        previous = entry;
+        return { ...entry, settings };
+      }),
+    );
     try {
       const updated = await updateWorkspaceSettingsService(workspaceId, settings);
       setWorkspaces((prev) =>
@@ -122,6 +132,11 @@ export function useWorkspaces(options: UseWorkspacesOptions = {}) {
       );
       return updated;
     } catch (error) {
+      if (previous) {
+        setWorkspaces((prev) =>
+          prev.map((entry) => (entry.id === workspaceId ? previous : entry)),
+        );
+      }
       onDebug?.({
         id: `${Date.now()}-client-update-workspace-settings-error`,
         timestamp: Date.now(),

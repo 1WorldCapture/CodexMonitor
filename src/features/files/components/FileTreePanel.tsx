@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { Menu, MenuItem } from "@tauri-apps/api/menu";
 import { LogicalPosition } from "@tauri-apps/api/dpi";
@@ -179,68 +179,26 @@ export function FileTreePanel({
   isLoading,
   onToggleFilePanel,
 }: FileTreePanelProps) {
-  const { nodes, folderPaths } = useMemo(() => buildTree(files), [files]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
+  const hasManualToggle = useRef(false);
   const showLoading = isLoading && files.length === 0;
-  const normalizedQuery = query.trim().toLowerCase();
+  const deferredQuery = useDeferredValue(query);
+  const normalizedQuery = deferredQuery.trim().toLowerCase();
 
-  const { filteredNodes, filteredFolderPaths, filteredFilesCount } = useMemo(() => {
+  const filteredFiles = useMemo(() => {
     if (!normalizedQuery) {
-      return {
-        filteredNodes: nodes,
-        filteredFolderPaths: folderPaths,
-        filteredFilesCount: files.length,
-      };
+      return files;
     }
+    return files.filter((path) => path.toLowerCase().includes(normalizedQuery));
+  }, [files, normalizedQuery]);
 
-    const matches = (value: string) => value.toLowerCase().includes(normalizedQuery);
+  const { nodes, folderPaths } = useMemo(
+    () => buildTree(normalizedQuery ? filteredFiles : files),
+    [files, filteredFiles, normalizedQuery],
+  );
 
-    const filterNode = (node: FileTreeNode): FileTreeNode | null => {
-      if (node.type === "file") {
-        return matches(node.name) ? node : null;
-      }
-      if (matches(node.name)) {
-        return node;
-      }
-      const nextChildren = node.children
-        .map((child) => filterNode(child))
-        .filter((child): child is FileTreeNode => Boolean(child));
-      if (nextChildren.length === 0) {
-        return null;
-      }
-      return {
-        ...node,
-        children: nextChildren,
-      };
-    };
-
-    const nextNodes = nodes
-      .map((node) => filterNode(node))
-      .filter((node): node is FileTreeNode => Boolean(node));
-
-    const nextFolderPaths = new Set<string>();
-    let nextFilesCount = 0;
-
-    const collect = (node: FileTreeNode) => {
-      if (node.type === "folder") {
-        nextFolderPaths.add(node.path);
-        node.children.forEach(collect);
-      } else {
-        nextFilesCount += 1;
-      }
-    };
-
-    nextNodes.forEach(collect);
-
-    return {
-      filteredNodes: nextNodes,
-      filteredFolderPaths: nextFolderPaths,
-      filteredFilesCount: nextFilesCount,
-    };
-  }, [files.length, folderPaths, nodes, normalizedQuery]);
-
-  const visibleFolderPaths = normalizedQuery ? filteredFolderPaths : folderPaths;
+  const visibleFolderPaths = folderPaths;
   const hasFolders = visibleFolderPaths.size > 0;
   const allVisibleExpanded =
     hasFolders && Array.from(visibleFolderPaths).every((path) => expandedFolders.has(path));
@@ -248,7 +206,7 @@ export function FileTreePanel({
   useEffect(() => {
     setExpandedFolders((prev) => {
       if (normalizedQuery) {
-        return new Set(filteredFolderPaths);
+        return new Set(folderPaths);
       }
       const next = new Set<string>();
       prev.forEach((path) => {
@@ -256,7 +214,7 @@ export function FileTreePanel({
           next.add(path);
         }
       });
-      if (next.size === 0) {
+      if (next.size === 0 && !hasManualToggle.current) {
         nodes.forEach((node) => {
           if (node.type === "folder") {
             next.add(node.path);
@@ -265,7 +223,7 @@ export function FileTreePanel({
       }
       return next;
     });
-  }, [filteredFolderPaths, folderPaths, nodes, normalizedQuery]);
+  }, [folderPaths, nodes, normalizedQuery]);
 
   const toggleAllFolders = () => {
     if (!hasFolders) {
@@ -280,6 +238,7 @@ export function FileTreePanel({
       }
       return next;
     });
+    hasManualToggle.current = true;
   };
 
   const toggleFolder = (path: string) => {
@@ -380,14 +339,14 @@ export function FileTreePanel({
         </button>
         <div className="file-tree-meta">
           <div className="file-tree-count">
-            {filteredFilesCount
-              ? normalizedQuery
-                ? `${filteredFilesCount} match${filteredFilesCount === 1 ? "" : "es"}`
-                : `${filteredFilesCount} file${filteredFilesCount === 1 ? "" : "s"}`
-              : showLoading
-                ? "Loading files"
-                : "No files"}
-          </div>
+          {filteredFiles.length
+            ? normalizedQuery
+              ? `${filteredFiles.length} match${filteredFiles.length === 1 ? "" : "es"}`
+              : `${filteredFiles.length} file${filteredFiles.length === 1 ? "" : "s"}`
+            : showLoading
+              ? "Loading files"
+              : "No files"}
+        </div>
           {hasFolders ? (
             <button
               type="button"
@@ -423,12 +382,12 @@ export function FileTreePanel({
               />
             ))}
           </div>
-        ) : filteredNodes.length === 0 ? (
+        ) : nodes.length === 0 ? (
           <div className="file-tree-empty">
             {normalizedQuery ? "No matches found." : "No files available."}
           </div>
         ) : (
-          filteredNodes.map((node) => renderNode(node, 0))
+          nodes.map((node) => renderNode(node, 0))
         )}
       </div>
     </aside>

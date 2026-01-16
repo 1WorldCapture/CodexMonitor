@@ -9,6 +9,7 @@ import { UpdateToast } from "../../update/components/UpdateToast";
 import { Composer } from "../../composer/components/Composer";
 import { GitDiffPanel } from "../../git/components/GitDiffPanel";
 import { GitDiffViewer } from "../../git/components/GitDiffViewer";
+import { FileTreePanel } from "../../files/components/FileTreePanel";
 import { DebugPanel } from "../../debug/components/DebugPanel";
 import { PlanPanel } from "../../plan/components/PlanPanel";
 import { TabBar } from "../../app/components/TabBar";
@@ -108,6 +109,8 @@ type LayoutNodesOptions = {
   onCopyThread: () => void | Promise<void>;
   onToggleTerminal: () => void;
   showTerminalButton: boolean;
+  filePanelMode: "git" | "files";
+  onToggleFilePanel: () => void;
   centerMode: "chat" | "diff";
   onExitDiff: () => void;
   activeTab: "projects" | "codex" | "git" | "log";
@@ -348,6 +351,8 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
       onToggleTerminal={options.onToggleTerminal}
       isTerminalOpen={options.terminalOpen}
       showTerminalButton={options.showTerminalButton}
+      filePanelMode={options.filePanelMode}
+      onToggleFilePanel={options.onToggleFilePanel}
     />
   ) : null;
 
@@ -374,34 +379,40 @@ export function useLayoutNodes(options: LayoutNodesOptions): LayoutNodesResult {
     <TabBar activeTab={options.activeTab} onSelect={options.onSelectTab} />
   );
 
-  const gitDiffPanelNode = (
-    <GitDiffPanel
-      mode={options.gitPanelMode}
-      onModeChange={options.onGitPanelModeChange}
-      branchName={options.gitStatus.branchName || "unknown"}
-      totalAdditions={options.gitStatus.totalAdditions}
-      totalDeletions={options.gitStatus.totalDeletions}
-      fileStatus={options.fileStatus}
-      error={options.gitStatus.error}
-      logError={options.gitLogError}
-      logLoading={options.gitLogLoading}
-      files={options.gitStatus.files}
-      selectedPath={options.selectedDiffPath}
-      onSelectFile={options.onSelectDiff}
-      logEntries={options.gitLogEntries}
-      logTotal={options.gitLogTotal}
-      logAhead={options.gitLogAhead}
-      logBehind={options.gitLogBehind}
-      logAheadEntries={options.gitLogAheadEntries}
-      logBehindEntries={options.gitLogBehindEntries}
-      logUpstream={options.gitLogUpstream}
-      issues={options.gitIssues}
-      issuesTotal={options.gitIssuesTotal}
-      issuesLoading={options.gitIssuesLoading}
-      issuesError={options.gitIssuesError}
-      gitRemoteUrl={options.gitRemoteUrl}
-    />
-  );
+  const gitDiffPanelNode =
+    options.filePanelMode === "files" && options.activeWorkspace ? (
+      <FileTreePanel
+        workspacePath={options.activeWorkspace.path}
+        files={options.files}
+      />
+    ) : (
+      <GitDiffPanel
+        mode={options.gitPanelMode}
+        onModeChange={options.onGitPanelModeChange}
+        branchName={options.gitStatus.branchName || "unknown"}
+        totalAdditions={options.gitStatus.totalAdditions}
+        totalDeletions={options.gitStatus.totalDeletions}
+        fileStatus={options.fileStatus}
+        error={options.gitStatus.error}
+        logError={options.gitLogError}
+        logLoading={options.gitLogLoading}
+        files={options.gitStatus.files}
+        selectedPath={options.selectedDiffPath}
+        onSelectFile={options.onSelectDiff}
+        logEntries={options.gitLogEntries}
+        logTotal={options.gitLogTotal}
+        logAhead={options.gitLogAhead}
+        logBehind={options.gitLogBehind}
+        logAheadEntries={options.gitLogAheadEntries}
+        logBehindEntries={options.gitLogBehindEntries}
+        logUpstream={options.gitLogUpstream}
+        issues={options.gitIssues}
+        issuesTotal={options.gitIssuesTotal}
+        issuesLoading={options.gitIssuesLoading}
+        issuesError={options.gitIssuesError}
+        gitRemoteUrl={options.gitRemoteUrl}
+      />
+    );
 
   const gitDiffViewerNode = (
     <GitDiffViewer

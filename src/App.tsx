@@ -11,6 +11,7 @@ import "./styles/update-toasts.css";
 import "./styles/composer.css";
 import "./styles/diff.css";
 import "./styles/diff-viewer.css";
+import "./styles/file-tree.css";
 import "./styles/debug.css";
 import "./styles/terminal.css";
 import "./styles/plan.css";
@@ -115,6 +116,7 @@ function MainApp() {
   const [gitPanelMode, setGitPanelMode] = useState<"diff" | "log" | "issues">(
     "diff"
   );
+  const [filePanelMode, setFilePanelMode] = useState<"git" | "files">("git");
   const [accessMode, setAccessMode] = useState<AccessMode>("current");
   const [activeTab, setActiveTab] = useState<
     "projects" | "codex" | "git" | "log"
@@ -753,6 +755,10 @@ function MainApp() {
     onCopyThread: handleCopyThread,
     onToggleTerminal: handleToggleTerminal,
     showTerminalButton: !isCompact,
+    filePanelMode,
+    onToggleFilePanel: () => {
+      setFilePanelMode((prev) => (prev === "git" ? "files" : "git"));
+    },
     centerMode,
     onExitDiff: () => {
       setCenterMode("chat");
